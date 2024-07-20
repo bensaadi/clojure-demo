@@ -10,7 +10,7 @@
     [sesame-delivery.api.locker :refer [insert-locker get-compartments]]))
 
 (defn insert-parcels-returns
-		"Populates each vacant compartment with parcels or returns."
+  "Populates each vacant compartment with parcels or returns."
   [n]
   (let [depots (get-depots)
         compartments (take n (shuffle (get-compartments)))]
@@ -18,17 +18,17 @@
            (map-indexed
              (fn [i compartment]
                (let [{compartment-id :db/id
-                     	locker-id :compartment/locker
-                     	size :compartment/size} compartment
-                    	{depot-id :db/id} depot]
-                	(if (< i 20)
-                  	(insert-return
-                    	[locker-id compartment-id depot-id (:db/ident size)])
-                  	(insert-parcel
-                    	[locker-id compartment-id depot-id (:db/ident size)
-                     	(jt/truncate-to
-                       	(jt/plus (jt/zoned-date-time) (jt/days (mod i 4))) :days)])
-                  	))
+                      locker-id :compartment/locker
+                      size :compartment/size} compartment
+                     {depot-id :db/id} depot]
+                 (if (< i 20)
+                   (insert-return
+                     [locker-id compartment-id depot-id (:db/ident size)])
+                   (insert-parcel
+                     [locker-id compartment-id depot-id (:db/ident size)
+                      (jt/truncate-to
+                        (jt/plus (jt/zoned-date-time) (jt/days (mod i 4))) :days)])
+                   ))
                ) compartments)
            ) depots)
     ))
