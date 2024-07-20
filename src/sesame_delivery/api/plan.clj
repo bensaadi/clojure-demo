@@ -3,6 +3,7 @@
     [sesame-delivery.api.utils :refer :all]
     [java-time.api :as jt]
     [datomic.api :as d]
+    [clojure.walk :refer [walk]]
     [compojure.core :refer [routes GET POST]]
     [clojure.instant]
     [sesame-delivery.api.algorithm :refer [solve-optimized-plan]]
@@ -13,7 +14,7 @@
     [sesame-delivery.api.parcel :refer [get-parcels-for-locker]]
     [sesame-delivery.api.db :refer [db-url]]))
 
-(defn make-itinerary 
+(defn _make-itinerary 
   [{
     depot :depot
     vehicle :vehicle
@@ -43,13 +44,12 @@
       (range stops-count)))
   )
 
-
-(defn make-plan [parcels-delivery-date vehicles-count stop-lockers stop-times]
+(defn _make-plan [parcels-delivery-date vehicles-count stop-lockers stop-times]
   (let [depot (first (get-depots))
         vehicles (get-vehicles)]
     (map
       (fn [i]
-        (make-itinerary
+        (_make-itinerary
           {:depot depot
            :vehicle (nth vehicles i)
            :lockers (nth stop-lockers i)
@@ -61,7 +61,7 @@
 
 (defn make-random-plan [date parcels-delivery-date vehicles-count]
   (let [lockers (shuffle (get-lockers))]
-    (make-plan
+    (_make-plan
       parcels-delivery-date
       vehicles-count
       (partition (- (/ (count lockers) vehicles-count) 3) lockers)
@@ -69,18 +69,20 @@
         (random-stop-times date (+ 2 (count lockers)))))))
 
 (defn make-optimized-plan [date parcels-delivery-date vehicles-count]
-  (let [
-        [locker-canonical-ids stop-times]
-        (solve-optimized-plan
-          {
-           :date date
-           :parcels-delivery-date parcels-delivery-date
-           :depot-canonical-id (:depot/canonical-id (first (get-depots)))
-           :vehicles-count vehicles-count})
+  (let
+    [[locker-canonical-ids stop-times]
+     (solve-optimized-plan
+       {:date date
+        :parcels-delivery-date parcels-delivery-date
+        :depot-canonical-id (:depot/canonical-id (first (get-depots)))
+        :vehicles-count vehicles-count})
 
-        stop-lockers (map (fn [plan] (map #(find-by-canonical-id db-url %) plan)) locker-canonical-ids)]
+     stop-lockers
+    (map
+      (fn [canonical-id]
+        (map #(find-by-canonical-id db-url %) canonical-id)) locker-canonical-ids)]
     (when (> (count stop-lockers) 0)
-      (make-plan
+      (_make-plan
         parcels-delivery-date
         vehicles-count
         stop-lockers
@@ -158,7 +160,7 @@
               (apply concat)
               (apply concat)
               (apply concat))
-          
+
             ; facts about returns
             (->>
               (map-indexed
