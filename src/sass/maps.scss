@@ -1,0 +1,14 @@
+.assets-map {
+	background: #FFF;
+	border-radius: 16px;
+
+	.locker {
+		cursor: pointer;
+	}
+
+	.locker:hover {
+		circle, text {
+			fill: red
+		}
+	}	
+}

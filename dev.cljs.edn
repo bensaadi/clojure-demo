@@ -1,0 +1,10 @@
+^{:watch-dirs ["test" "src"]
+  :css-dirs ["resources/public/css"]
+  :auto-testing true
+  :auto-bundle :webpack }
+; {:main sesame-delivery.core}
+{:main sesame-delivery.core
+ :target :bundle
+ :bundle-cmd {:none ["npx" "webpack" "--mode=production" "--entry" :output-to 
+                     "--output-path" :final-output-dir
+					 "--output-filename" :final-output-filename]}}	

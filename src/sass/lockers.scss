@@ -1,0 +1,84 @@
+$pending-order-delivery: #ffd5a4;
+$pending-order-pickup: #4d8d6a;
+$pending-return-dropoff: #809eb2;
+$pending-return-pickup: #959dcf;
+
+.lockers-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 20px;
+  grid-auto-rows: minmax(100px, auto);
+}
+
+.locker-picto {
+  h4 {
+    margin: 0;
+  }
+
+  h5 {
+    font-size: 12px;
+    font-weight: normal;
+    color: #555;
+    margin: 0;
+    height: 30px;
+    line-height: 1em;
+  }
+
+  .door {
+    fill: #777;
+  	stroke: #333;
+  	stroke-width: 2;
+  }
+
+  .door:hover {
+    opacity: .8;
+  }
+
+  .door.vacant { fill: #555; }
+  .door.pending-order-delivery { fill: $pending-order-delivery; }
+  .door.pending-order-pickup { fill: $pending-order-pickup; }
+  .door.pending-return-dropoff { fill: $pending-return-dropoff; }
+  .door.pending-return-pickup { fill: $pending-return-pickup; }
+
+  .status-orb {
+  	float: left;
+ 		display: inline-block;
+  	width: 8px;
+  	height: 8px;
+  	margin: 5px 5px 0 0;
+  	border-radius: 8px;
+
+  	&.online {
+  		background: green;
+  	}
+  }
+}
+
+.locker-color-key {
+	margin-bottom: 50px;
+
+	ul {
+		display: block;
+		padding: 0;
+
+		li {
+			margin-right: 12px;
+			display: inline-block;
+		}
+	}
+
+
+	.color {
+		width: 10px;
+		height: 10px;
+		display: inline-block;
+		margin-right: 5px;
+	}
+
+  .color.vacant { background: #555; }
+  .color.pending-order-delivery { background: $pending-order-delivery; }
+  .color.pending-order-pickup { background: $pending-order-pickup; }
+  .color.pending-return-dropoff { background: $pending-return-dropoff; }
+  .color.pending-return-pickup { background: $pending-return-pickup; }
+}
+
