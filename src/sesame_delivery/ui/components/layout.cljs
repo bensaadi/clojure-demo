@@ -9,7 +9,7 @@
 
 (defn layout
   "Dashboard layout"
-  [props & children]
+  [_props & children]
   (let [loading? @(rf/subscribe [:loading?])
         processing-error @(rf/subscribe [:processing-error])
         fetching-error @(rf/subscribe [:fetching-error])]

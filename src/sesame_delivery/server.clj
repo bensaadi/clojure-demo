@@ -1,13 +1,11 @@
 (ns sesame-delivery.server
   (:require 
-    [compojure.core :refer [defroutes context GET routes]]
+    [compojure.core :refer [defroutes context GET]]
     [compojure.route :as route]
-    [reitit.ring :refer [create-file-handler]]
     [ring.middleware.reload :refer [wrap-reload]] 
     [ring.middleware.content-type :refer [wrap-content-type]]
     [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
     [ring.util.response :as r]
-    [ring.middleware.resource :refer [wrap-resource]]
     [ring.adapter.jetty :as jetty]
     [clojure.string :as s]
 
@@ -33,7 +31,7 @@
       (context "/returns" [] (return/controller))
       (context "/vehicles" [] (vehicle/controller))
       (context "/map" [] (map/controller))
-      (GET "/reset" [] (fn [request] (do (setup-db) (insert-test-data) "done")))
+      (GET "/reset" [] (fn [_request] (setup-db) (insert-test-data) "done"))
       (route/not-found {:body {:status "error" :message "Not found"}}))))
  
 (defroutes api-handler

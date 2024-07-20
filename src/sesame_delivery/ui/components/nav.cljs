@@ -19,12 +19,12 @@
   (let [current-route (:current-route (session/get :route))]
     [:li
       [:a {
-        :class (if (= current-route route) "current")
+        :class (when (= current-route route) "current")
         :href (path-for route)} (route icons) label ]]))
 
 (defn nav
   "Dashboard navigation"  
-  [props & children]
+  [props]
     [:header
      [:div {:class "nav-wrapper"}
       [:nav

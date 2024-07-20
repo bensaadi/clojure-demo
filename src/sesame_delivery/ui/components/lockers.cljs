@@ -1,6 +1,5 @@
 (ns sesame-delivery.ui.components.lockers
   (:require
-    [clojure.string :as s]
     [reagent.core :as reagent]
     [re-frame.core :as rf]
     [sesame-delivery.ui.utils :refer [format-keyword]]
@@ -38,7 +37,6 @@
      [:h4 canonical-id]
      [:h5 name]
      (locker-picto compartments)]))
-
 
 (rf/reg-sub :lockers (fn [db] (:lockers db)))
 

@@ -1,7 +1,6 @@
 (ns sesame-delivery.api.vehicle
   (:require 
     [sesame-delivery.api.utils :refer :all]
-    [ring.util.response :as r]
     [datomic.api :as d]
     [compojure.core :refer [routes GET POST]]
     [sesame-delivery.api.db :refer [db-url]]))
@@ -18,7 +17,7 @@
                     :where [?e :vehicle/canonical-id]]
                (d/db (d/connect db-url)))))
 
-(defn list-vehicles [request]
+(defn list-vehicles [_request]
   (success (format-query-output (get-vehicles))))
 
 (defn controller []

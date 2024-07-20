@@ -1,6 +1,5 @@
 (ns sesame-delivery.ui.components.plans
   (:require
-    [reagent.core :as reagent]
     [sesame-delivery.ui.utils :refer [format-keyword format-time]]
     [reagent.core :as r]
     [re-frame.core :as rf]
@@ -89,7 +88,7 @@
 (defn plans []
   (let [fetch-plans #(rf/dispatch [:fetch "/api/plans" :plans])
         plans (rf/subscribe [:plans])]
-    (reagent/create-class
+    (r/create-class
       {:display-name "plans"
 
        :component-did-mount fetch-plans

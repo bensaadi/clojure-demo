@@ -1,26 +1,18 @@
 (ns sesame-delivery.api.algorithm
   (:require 
     [sesame-delivery.api.utils :refer :all]
-    [ring.util.response :as r]
-    [clojure.core.matrix :as m]
-    [clojure.string :as s]
-    [datomic.api :as d]
-    [compojure.core :refer [routes GET POST]]
     [java-time.api :as jt]
 
     [sesame-delivery.api.testdata :refer :all]
     [sesame-delivery.api.geo :refer [make-time-matrix]]
     [sesame-delivery.api.locker :refer [get-lockers-pending-orders]]
-    [sesame-delivery.api.depot :refer [get-depot-with-time-window]]
-    [sesame-delivery.api.db :refer [db-url]]))
+    [sesame-delivery.api.depot :refer [get-depot-with-time-window]]))
 
 (import [org.sesame.delivery TripPlan])
 
-(import java.util.Date)
-(import java.lang.Integer)
 
 ; duration of each stop in minutes
-;; TODO: adjust in terms of # of parcels & returns
+;; TODO: adjust in termsresource of # of parcels & returns
 (def stop-duration 10)
 
 (defn into-2d-array
@@ -65,7 +57,7 @@
                    (println "Algorithm returned" itinerary)
                    (map-indexed
                      (fn [stop-index [optimal-locker-index start end]]
-                       [
+                       [resource
                         (get canonical-ids optimal-locker-index)
                         [(jt/plus date (jt/minutes (+ (* stop-duration stop-index) start) ))
                          (jt/plus date (jt/minutes (+ (* stop-duration (inc stop-index)) end)))]]

@@ -1,7 +1,6 @@
 (ns sesame-delivery.api.plan
   (:require 
     [sesame-delivery.api.utils :refer :all]
-    [ring.util.response :as r]
     [java-time.api :as jt]
     [datomic.api :as d]
     [compojure.core :refer [routes GET POST]]
@@ -13,8 +12,6 @@
     [sesame-delivery.api.return :refer [get-returns-for-locker]]
     [sesame-delivery.api.parcel :refer [get-parcels-for-locker]]
     [sesame-delivery.api.db :refer [db-url]]))
-
-(import java.util.Date)
 
 (defn make-itinerary 
   [{
@@ -120,7 +117,7 @@
       (Integer/parseInt)
       (inc)
       (#(str "P" (jt/format "yyMMdd" start-at)
-          (if (< % 100) "0") (if (< % 10) "0") %))
+          (when (< % 100) "0") (when (< % 10) "0") %))
       )))
 
 (defn insert-plan [{ itineraries :itineraries }]
@@ -182,7 +179,7 @@
 
             ; facts about itineraries
             (map-indexed
-              (fn [i {depot-id :depot-id vehicle-id :vehicle-id lockers :lockers stop-times :stop-times}]
+              (fn [i {depot-id :depot-id vehicle-id :vehicle-id stop-times :stop-times}]
                 {:db/id (nth itinerary-ids i)
                  :itinerary/state :itinerary.state/scheduled
                  :itinerary/vehicle vehicle-id

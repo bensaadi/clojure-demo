@@ -1,24 +1,22 @@
 (ns sesame-delivery.api.depot
   (:require 
     [sesame-delivery.api.utils :refer :all]
-    [ring.util.response :as r]
     [datomic.api :as d]
     [compojure.core :refer [routes GET POST]]
     [sesame-delivery.api.vehicle :refer [gen-vehicle-canonical-id]]
     [sesame-delivery.api.db :refer [db-url]]))
 
-
 (defn insert-depot [fields]
   (let [[canonical-id name lat long] fields
         depot-id (d/tempid :db.part/delivery)
         location-id (d/tempid :db.part/delivery)
-        vehicle-ids (map (fn [i] (d/tempid :db.part/delivery)) (range 2))]
+        vehicle-ids (map (fn [_] (d/tempid :db.part/delivery)) (range 2))]
     (-> db-url
       (d/connect)
       (d/transact
         (concat 
-          (map-indexed
-            (fn [i vehicle-id]
+          (map
+            (fn [vehicle-id]
               {
               	:db/id vehicle-id
               	:vehicle/name "Renault Master L3H2"
@@ -61,10 +59,8 @@
     (first)
     (into [])))
 
-
-(defn list-depots [request]
+(defn list-depots [_request]
   (success (format-query-output (get-depots))))
-
 
 (defn controller []
   (routes

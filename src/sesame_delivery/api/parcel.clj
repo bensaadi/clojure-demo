@@ -1,7 +1,6 @@
 (ns sesame-delivery.api.parcel
   (:require 
     [sesame-delivery.api.utils :refer :all]
-    [ring.util.response :as r]
     [datomic.api :as d]
     [compojure.core :refer [routes GET POST]]
     [java-time.api :as jt]

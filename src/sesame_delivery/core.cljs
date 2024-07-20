@@ -2,14 +2,12 @@
   (:require
     [react :as react]
     [goog.dom :as gdom]
-    [reagent.core :as reagent :refer [atom]]
     [reagent.dom :as rdom]
     [reagent.session :as session]
     [re-frame.core :as rf]
     [reitit.frontend :as reitit]
     [accountant.core :as accountant]
-    [day8.re-frame.http-fx] 
-    [ajax.core :as ajax]
+    [day8.re-frame.http-fx]
 
     [sesame-delivery.ui.db :refer [default-db]]
     [sesame-delivery.ui.events]

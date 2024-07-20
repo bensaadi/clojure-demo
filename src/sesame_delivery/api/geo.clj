@@ -6,7 +6,7 @@
     [sesame-delivery.api.db :refer [db-url]]))
 
 (defn insert-distances [distances]
-  (let [distance-ids (map (fn [i] (d/tempid :db.part/delivery)) (range (count distances)))]
+  (let [distance-ids (map (fn [_] (d/tempid :db.part/delivery)) (range (count distances)))]
     (-> db-url
      	(d/connect)
      	(d/transact

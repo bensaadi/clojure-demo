@@ -1,3 +1,3 @@
 (ns sesame-delivery.ui.db)
 
-(def default-db { :loading? true :processing? false :lockers [] :counter 11 })
+(def default-db { :loading? true :processing? false :lockers [] })

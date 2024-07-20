@@ -1,21 +1,18 @@
 (ns sesame-delivery.api.locker
   (:require 
     [sesame-delivery.api.utils :refer :all]
-    [ring.util.response :as r]
     [datomic.api :as d]
     [compojure.core :refer [routes GET POST]]
     [java-time.api :as jt]
 
     [sesame-delivery.api.db :refer [db-url]]))
 
-(import java.util.Date)
-
 (defn insert-locker [fields]
   (let
     [[canonical-id name lat long] fields
      locker-id (d/tempid :db.part/delivery)
      location-id (d/tempid :db.part/delivery)
-     compartment-ids (map (fn [i] (d/tempid :db.part/delivery)) (range 16))
+     compartment-ids (map (fn [_] (d/tempid :db.part/delivery)) (range 16))
      standard-sizes "mmmsssssssssmmll"]
     (-> db-url
       (d/connect)
@@ -103,7 +100,7 @@
             (d/db (d/connect db-url)) start end))))))
 
 
-(defn list-lockers [request]
+(defn list-lockers [_request]
   (success (format-query-output (get-lockers))))
 
 

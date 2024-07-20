@@ -1,6 +1,5 @@
 (ns sesame-delivery.api.schema
   (:require
-    [datomic.api :as d]
     [datomic-schema.schema :as s]))
 
 (def db-parts [(s/part "delivery")])
