@@ -1,8 +1,8 @@
 (ns sesame-delivery.api.depot
   (:require 
-    [sesame-delivery.api.utils :refer :all]
-    [datomic.api :as d]
     [compojure.core :refer [routes GET POST]]
+    [datomic.api :as d]
+    [sesame-delivery.api.utils :refer :all]
     [sesame-delivery.api.vehicle :refer [gen-vehicle-canonical-id]]
     [sesame-delivery.api.db :refer [db-url]]))
 
@@ -17,20 +17,17 @@
         (concat 
           (map
             (fn [vehicle-id]
-              {
-              	:db/id vehicle-id
+              {:db/id vehicle-id
               	:vehicle/name "Renault Master L3H2"
               	:vehicle/canonical-id (gen-vehicle-canonical-id)
               	:vehicle/depot depot-id
               	:vehicle/capacity 540
               	:vehicle/state :vehicle.state/parked-in-depot
               	}) vehicle-ids)
-          [{
-           	:db/id location-id
+          [{:db/id location-id
            	:location/lat lat
            	:location/long long}
-          	{
-          		:db/id depot-id
+          	{:db/id depot-id
           		:depot/name name
           		:depot/canonical-id canonical-id
           		:depot/location location-id
@@ -42,19 +39,17 @@
 
 (defn get-depots []
   (map first
-    (d/q '[:find (pull
+    (q '[:find (pull
                    ?e [:db/id :depot/canonical-id])
-           :where [?e :depot/canonical-id]]
-      (d/db (d/connect db-url)))))
+           :where [?e :depot/canonical-id]])))
 
 (defn get-depot-with-time-window [canonical-id]
  	(->> canonical-id
-    (d/q
+    (q
       '[:find
         (pull ?e [:depot/canonical-id :depot/open-from :depot/open-until])
         :in $ ?canonical-id
-        :where [?e :depot/canonical-id ?canonical-id]]
-      (d/db (d/connect db-url)))
+        :where [?e :depot/canonical-id ?canonical-id]])
     (first)
     (first)
     (into [])))

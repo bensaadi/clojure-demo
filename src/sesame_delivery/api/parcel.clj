@@ -1,10 +1,9 @@
 (ns sesame-delivery.api.parcel
   (:require 
-    [sesame-delivery.api.utils :refer :all]
-    [datomic.api :as d]
     [compojure.core :refer [routes GET POST]]
+    [datomic.api :as d]
     [java-time.api :as jt]
-
+    [sesame-delivery.api.utils :refer :all]
     [sesame-delivery.api.db :refer [db-url]]))
 
 (import java.util.Date)
@@ -34,8 +33,7 @@
 
 (defn get-parcels []
   (map first
-    (d/q
-      '[:find
+    (q '[:find
         (pull
           ?e [:db/id
               :parcel/canonical-id
@@ -44,8 +42,7 @@
               {:parcel/plan [:plan/canonical-id]}
               {:parcel/size [:db/ident]}
               {:parcel/state [:db/ident]}])
-        :where [?e :parcel/canonical-id]]
-      (d/db (d/connect db-url)))))
+        :where [?e :parcel/canonical-id]])))
 
 
 (defn get-parcels-for-locker [locker-id date]
@@ -53,7 +50,7 @@
         end (jt/java-date (jt/truncate-to (jt/plus date (jt/days 1)) :days))]
     (map #(:db/id %)
       (map first
-        (d/q
+        (q
           '[:find
             (pull ?e [:db/id ])
             :in $ ?locker ?start ?end
@@ -61,7 +58,7 @@
             [?e :parcel/deliver-by ?deliver-by]
             [(>= ?deliver-by ?start)]
             [(< ?deliver-by ?end)]]
-          (d/db (d/connect db-url)) locker-id start end)))))
+          locker-id start end)))))
 
 
 

@@ -1,10 +1,9 @@
 (ns sesame-delivery.api.locker
   (:require 
-    [sesame-delivery.api.utils :refer :all]
-    [datomic.api :as d]
     [compojure.core :refer [routes GET POST]]
+    [datomic.api :as d]
     [java-time.api :as jt]
-
+    [sesame-delivery.api.utils :refer :all]
     [sesame-delivery.api.db :refer [db-url]]))
 
 (defn insert-locker [fields]
@@ -43,42 +42,38 @@
 
 (defn get-compartments []
   (map first
-    (d/q
-      '[:find
-        (pull
-          ?e [:db/id
-              :compartment/canonical-id
-              :compartment/locker
-              {:compartment/state [:db/ident]}
-              {:compartment/size [:db/ident]}])
-        :where
-        [?e :compartment/canonical-id]
-        [?e :compartment/state :compartment.state/vacant]
-        ]
-      (d/db (d/connect db-url)))))
+    (q '[:find
+         (pull
+           ?e [:db/id
+               :compartment/canonical-id
+               :compartment/locker
+               {:compartment/state [:db/ident]}
+               {:compartment/size [:db/ident]}])
+         :where
+         [?e :compartment/canonical-id]
+         [?e :compartment/state :compartment.state/vacant]
+         ])))
 
 
 (defn get-lockers []
   (map
     first
-    (d/q
-      '[:find
-        (pull
-          ?e [
-              :db/id
-              :locker/canonical-id
-              :locker/name
-              :locker/open-from
-              :locker/open-until
-              {:locker/location
-              	[:location/lat :location/long]}
-             	{:locker/compartments
-             		[:compartment/canonical-id
-              		{:compartment/state [:db/ident]}
-              		{:compartment/size [:db/ident]}]}])
-        :where
-        [?e :locker/canonical-id]]
-      (d/db (d/connect db-url)))))
+    (q '[:find
+         (pull
+           ?e [
+               :db/id
+               :locker/canonical-id
+               :locker/name
+               :locker/open-from
+               :locker/open-until
+               {:locker/location
+               	[:location/lat :location/long]}
+              	{:locker/compartments
+              		[:compartment/canonical-id
+               		{:compartment/state [:db/ident]}
+               		{:compartment/size [:db/ident]}]}])
+         :where
+         [?e :locker/canonical-id]])))
 
 
 (defn get-lockers-pending-orders [date]
@@ -88,7 +83,7 @@
     (distinct
       (map :parcel/locker
         (map first
-          (d/q
+          (q
             '[:find
               (pull ?e [:db/id {:parcel/locker
                                	[:locker/canonical-id :locker/open-from :locker/open-until]} ])
@@ -97,7 +92,7 @@
               [?e :parcel/deliver-by ?deliver-by]
               [(>= ?deliver-by ?start)]
               [(< ?deliver-by ?end)]]
-            (d/db (d/connect db-url)) start end))))))
+            start end))))))
 
 
 (defn list-lockers [_request]

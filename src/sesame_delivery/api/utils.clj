@@ -1,10 +1,10 @@
 (ns sesame-delivery.api.utils
   (:require 
-    [java-time.api :as jt]
+    [clojure.string :as s]
+    [clojure.walk :refer [postwalk]]
     [datomic.api :as d]
     [geocoordinates.core :as geo]
-    [clojure.string :as s]
-    [clojure.walk :refer [postwalk]]))
+    [java-time.api :as jt]))
 
 
 ; constants
@@ -69,7 +69,7 @@
     (map-values
       #(nested-group-by (rest fs) %)
       (group-by (first fs) coll)
-        )))
+      )))
 
 (defn sort-by-list [v sort-list]
   (map #(get v %) sort-list)
@@ -127,7 +127,32 @@
 
 ; db-related
 
-(defn find-by-canonical-id [db-url canonical-id]
+
+(def ^{:dynamic true :doc "A Datomic database value used over the life of a Ring request."} *db*)
+(def ^{:dynamic true :doc "A Datomic connection bound for the life of a Ring request."} *connection*)
+
+(defn wrap-datomic
+  "A Ring middleware that provides a request-consistent database connection and
+value for the life of a request."
+  [handler uri]
+  (fn [request]
+    (let [conn (d/connect uri)]
+      (binding [*connection* conn
+                *db*         (d/db conn)]
+        (handler request)))))
+
+(defn transact
+  "Run a transaction with a request-consistent connection."
+  [tx]
+  (d/transact *connection* tx))
+
+(defn q
+  "Runs the given query over a request-consistent database as well as
+the other given sources."
+  [query & sources]
+  (apply d/q query *db* sources))
+
+(defn canonical-id->entity [canonical-id]
   (let [dict {"L" "locker"
               "D" "depot"
               "V" "vehicle"
@@ -138,8 +163,13 @@
               "X" "location"}
         k (get dict (str (first canonical-id)))
         k-canonical-id (keyword (str k "/canonical-id"))]
-    (first (first (d/q '[:in $ ?k-canonical-id ?canonical-id
-                         :find (pull ?e [*])
-                         :where [?e ?k-canonical-id ?canonical-id ]]
-                    (d/db (d/connect db-url)) k-canonical-id canonical-id)))))
+    (->
+      (q '[:in $ ?k-canonical-id ?canonical-id
+           :find (pull ?e [*])
+           :where [?e ?k-canonical-id ?canonical-id ]]
+        k-canonical-id canonical-id)
+      first
+      first)))
+
+
 

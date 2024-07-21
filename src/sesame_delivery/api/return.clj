@@ -1,9 +1,9 @@
 (ns sesame-delivery.api.return
   (:require 
-    [sesame-delivery.api.utils :refer :all]
-    [java-time.api :as jt]
-    [datomic.api :as d]
     [compojure.core :refer [routes GET POST]]
+    [datomic.api :as d]
+    [java-time.api :as jt]
+    [sesame-delivery.api.utils :refer :all]
     [sesame-delivery.api.db :refer [db-url]]))
 
 (defn gen-return-canonical-id []
@@ -30,8 +30,7 @@
 
 (defn get-returns []
   (map first
-    (d/q
-      '[:find
+    (q '[:find
         (pull
           ?e [:db/id
               :return/canonical-id
@@ -39,20 +38,18 @@
               {:return/plan [:plan/canonical-id :plan/start-at ]}
               {:return/size [:db/ident]}
               {:return/state [:db/ident]}])
-        :where [?e :return/canonical-id]]
-      (d/db (d/connect db-url)))))
+        :where [?e :return/canonical-id]])))
 
 (defn get-returns-for-locker [locker-id]
   (->>
     locker-id
-    (d/q '[:find
+    (q '[:find
            (pull
              ?e [:db/id])
            :in $ ?locker
            :where
            [?e :return/locker ?locker]
-           [?e :return/state :return.state/returned-to-locker]]
-      (d/db (d/connect db-url)))
+           [?e :return/state :return.state/returned-to-locker]])
     (map first)
     (map #(:db/id %))))
 

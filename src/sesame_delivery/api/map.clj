@@ -1,15 +1,40 @@
 (ns sesame-delivery.api.map
   (:require 
-    [sesame-delivery.api.utils :refer :all]
-    [datomic.api :as d]
     [compojure.core :refer [routes GET POST]]
     [com.michaelgaare.clojure-polyline :as polyline]
+    [datomic.api :as d]
     [geo [io :as gio]]
+    [sesame-delivery.api.utils :refer :all]
+    [sesame-delivery.api.locker :refer [get-lockers]]
+    [sesame-delivery.api.db :refer [db-url]]
     [thi.ng.geom.circle :as c]
     [thi.ng.geom.svg.core :as svg]
-    [thi.ng.geom.svg.adapter :as adapt]
-    [sesame-delivery.api.locker :refer [get-lockers]]
-    [sesame-delivery.api.db :refer [db-url]]))
+    [thi.ng.geom.svg.adapter :as adapt]))
+
+(defn plan-preview [plan-canonical-id]
+  (->>
+    (get-plan-data plan-canonical-id)
+    (transform-plan-data)
+    (gen-plan-map)
+    (adapt/all-as-svg)
+    (svg/serialize)
+    (serve-svg)))
+
+(defn assets-map []
+  (->>
+    (get-assets-data)
+    (gen-assets-map)
+    (adapt/all-as-svg)
+    (svg/serialize)
+    (serve-svg)))
+
+(defn controller []
+  (routes
+    (GET "/assets" [] (assets-map))
+    (GET "/data/assets" [] (success (format-query-output (get-assets-data))))
+    (GET "/plan-preview/:plan-id" [plan-id] (plan-preview plan-id))))
+
+
 
 
 ; map boundaries
@@ -32,10 +57,6 @@
   ((plate-carree [min-lat min-long] [max-lat max-long] [min-x min-y] [max-x max-y])
    [lat long]))
 
-(defn stop-pin [[x y] label]
-  (list
-    (svg/text [(+ x 0) (+ y 14)] label {:text-anchor "middle" :font-size 10})  
-    (with-meta (c/circle x y 4) {:fill "#333" :class label})))
 
 (def admin 
   (geodata->points geodata projection))
@@ -43,29 +64,28 @@
 (defn get-plan-data [plan-canonical-id]
   (first
     (first
-      (d/q
-        '[:find
-          (pull ?e
-            [:db/id
-             {:plan/itineraries
-              [:db/id
-               {:itinerary/start-depot
-                [:depot/canonical-id
-                 {:depot/location [:location/lat :location/long]}]}
-               {:itinerary/end-depot
-                [:depot/canonical-id
-                 {:depot/location [:location/lat :location/long]}]}
-               {:itinerary/stops
-                [:stop/arrive-by
-                 :stop/depart-by
-                 {:stop/locker
-                  [:locker/canonical-id
-                   {:locker/location [:location/lat :location/long]}
-                   ]}]}
-               ]}])
-          :in $ ?plan-canonical-id
-          :where [?e :plan/canonical-id ?plan-canonical-id ]]
-        (d/db (d/connect db-url)) plan-canonical-id))))
+      (q '[:find
+           (pull ?e
+             [:db/id
+              {:plan/itineraries
+               [:db/id
+                {:itinerary/start-depot
+                 [:depot/canonical-id
+                  {:depot/location [:location/lat :location/long]}]}
+                {:itinerary/end-depot
+                 [:depot/canonical-id
+                  {:depot/location [:location/lat :location/long]}]}
+                {:itinerary/stops
+                 [:stop/arrive-by
+                  :stop/depart-by
+                  {:stop/locker
+                   [:locker/canonical-id
+                    {:locker/location [:location/lat :location/long]}
+                    ]}]}
+                ]}])
+           :in $ ?plan-canonical-id
+           :where [?e :plan/canonical-id ?plan-canonical-id ]]
+        plan-canonical-id))))
 
 (defn transform-plan-data [raw-data]
   (let [data
@@ -105,85 +125,89 @@
 
 (defn route->polyline [[from to]]
   (:distance/polyline
-    (first
-      (first
-        (d/q
-          '[:find
-            (pull ?e [:db/id :distance/polyline])
-            :in $ ?from-canonical-id ?to-canonical-id
-            :where [?e :distance/from-canonical-id ?from-canonical-id]
-            [?e :distance/to-canonical-id ?to-canonical-id]
-            [?e :distance/rush-hour? false]
-            [?e :distance/day-of-week 0]]
-          (d/db (d/connect db-url)) from to)))))
+    (->
+      (q '[:find
+           (pull ?e [:db/id :distance/polyline])
+           :in $ ?from-canonical-id ?to-canonical-id
+           :where [?e :distance/from-canonical-id ?from-canonical-id]
+           [?e :distance/to-canonical-id ?to-canonical-id]
+           [?e :distance/rush-hour? false]
+           [?e :distance/day-of-week 0]]
+        from to)
+      first
+      first)))
+
+(defn get-polylines [canonical-ids]
+  (->> canonical-ids
+    (map stops->route)
+    (map #(map route->polyline %))
+    (map #(map
+            (fn [s]
+              (try
+                (polyline/decode s)
+                (catch Exception e
+                  (println (str "Error decoding polyline " e)))))
+            %))
+    (map
+      (fn [itinerary]
+        (->> itinerary
+          (map #(map projection %)))))))
+
+(defn draw-stop-pin [[x y] label]
+  (list
+    (svg/text [(+ x 0) (+ y 14)] label {:text-anchor "middle" :font-size 10})  
+    (with-meta (c/circle x y 4) {:fill "#333" :class label})))
+
+(defn draw-polyline-paths [polylines]
+  (map-indexed
+    (fn [i itinerary]
+      (map
+        (fn [points]
+          (list (svg/path (points->path points)
+                  {:stroke-width 2
+                   :stroke-dasharray "8 4"
+                   :stroke-dashoffset (* 8 i)
+                   :stroke (get route-colors i)
+                   :fill "transparent"
+                   :class (str "route-" i) }))
+          ) itinerary)) polylines))
+
+(defn draw-polyline-labels [polylines]
+  (map-indexed
+    (fn [i itinerary]
+      (map-indexed
+        (fn [j points]
+          (let [midpoint (get-path-midpoint points)]
+            (svg/group {}
+              (with-meta
+                (c/circle (first midpoint) (second midpoint) 12)
+                {:fill (get route-colors i)})
+              (svg/text
+                [(first midpoint) (+ 4 (second midpoint))] (inc j)
+                {:fill "#FFF"
+                 :font-weight "bold"
+                 :text-anchor "middle"}))))
+        itinerary))
+    polylines))
+
+(defn draw-admin-boundaries [boundaries]
+  (map #(svg/path % {:stroke "#BBB" :fill "#FFF"})
+    (map points->path boundaries)))
 
 (defn gen-plan-map
-  [{
-    stops :stops
+  [{stops :stops
     stop-labels :stop-labels
     _routes :routes ; TODO implement 
     _route-labels :route-labels
     canonical-ids :canonical-ids }]
   (svg/svg
     {:width max-x :height max-y :font-family "Arial" :font-size 18}
-
-    ; admin boundaries
-    (map #(svg/path % {:stroke "#BBB" :fill "#FFF"})
-      (map points->path admin))
-
-    ; stop pins
-    (list (mapcat stop-pin stops stop-labels))
-
-    (let [polylines
-          (->> canonical-ids
-            (map stops->route)
-            (map #(map route->polyline %))
-            (map #(map
-                    (fn [s]
-                      (try
-                        (polyline/decode s)
-                        (catch Exception e
-                          (println (str "Error decoding polyline " e)))))
-                    %))
-            (map
-              (fn [itinerary]
-                (->> itinerary
-                  (map #(map projection %))))))]
-
-      ; draw polyline paths
-
-      (list
-        (map-indexed
-          (fn [i itinerary]
-            (map
-              (fn [points]
-                (list (svg/path (points->path points)
-                        {:stroke-width 2
-                         :stroke-dasharray "8 4"
-                         :stroke-dashoffset (* 8 i)
-                         :stroke (get route-colors i)
-                         :fill "transparent"
-                         :class (str "route-" i) }))
-                ) itinerary)) polylines)
-
-        ; draw polyline labels
-
-        (map-indexed
-          (fn [i itinerary]
-            (map-indexed
-              (fn [j points]
-                (let [midpoint (get-path-midpoint points)]
-                  (svg/group {}
-                    (with-meta
-                      (c/circle (first midpoint) (second midpoint) 12)
-                      {:fill (get route-colors i)})
-                    (svg/text
-                      [(first midpoint) (+ 4 (second midpoint))] (inc j)
-                      {:fill "#FFF"
-                       :font-weight "bold"
-                       :text-anchor "middle"}))))
-              itinerary))
-          polylines)))))
+    (draw-admin-boundaries admin)
+    (list (mapcat draw-stop-pin stops stop-labels))
+    (let [polylines (get-polylines canonical-ids)]
+      (list 
+        (draw-polyline-paths polylines)
+        (draw-polyline-labels polylines)))))
 
 (defn get-assets-data []
   {:lockers
@@ -206,33 +230,9 @@
     ; admin boundaries
     (map #(svg/path % {:stroke "#BBB" :fill "#FFF"}) admin)
 
-    (map (fn [[location label]] (stop-pin location label)) lockers)))
+    (map (fn [[location label]] (draw-stop-pin location label)) lockers)))
 
 (defn serve-svg [image]
   {:body image 
    :headers { "content-type" "image/svg+xml"}})
-
-(defn plan-preview [plan-canonical-id]
-  (->>
-    (get-plan-data plan-canonical-id)
-    (transform-plan-data)
-    (gen-plan-map)
-    (adapt/all-as-svg)
-    (svg/serialize)
-    (serve-svg)))
-
-(defn assets-map []
-  (->>
-    (get-assets-data)
-    (gen-assets-map)
-    (adapt/all-as-svg)
-    (svg/serialize)
-    (serve-svg)))
-
-(defn controller []
-  (routes
-    (GET "/assets" [] (assets-map))
-    (GET "/data/assets" [] (success (format-query-output (get-assets-data))))
-    (GET "/plan-preview/:plan-id" [plan-id] (plan-preview plan-id))))
-
 

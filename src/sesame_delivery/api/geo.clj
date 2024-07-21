@@ -1,8 +1,7 @@
 (ns sesame-delivery.api.geo
   (:require 
-    [sesame-delivery.api.utils :refer :all]
     [datomic.api :as d]
-
+    [sesame-delivery.api.utils :refer :all]
     [sesame-delivery.api.db :refer [db-url]]))
 
 (defn insert-distances [distances]
@@ -24,7 +23,7 @@
 
 (defn get-distances-from [from-canonical-id to-canonical-ids]
   (->> from-canonical-id
-    (d/q
+    (q
       '[:find
         (pull
           ?e [:db/id
@@ -33,7 +32,7 @@
               :distance/minutes])
         :in $ ?from-canonical-id
         :where [?e :distance/from-canonical-id ?from-canonical-id]]
-      (d/db (d/connect db-url)) from-canonical-id)
+      from-canonical-id)
     (map first)
     (filter #(contains? (set to-canonical-ids) (:distance/to-canonical-id  %)))
     ))

@@ -1,8 +1,7 @@
 (ns sesame-delivery.api.algorithm
   (:require 
-    [sesame-delivery.api.utils :refer :all]
     [java-time.api :as jt]
-
+    [sesame-delivery.api.utils :refer :all]
     [sesame-delivery.api.testdata :refer :all]
     [sesame-delivery.api.geo :refer [make-time-matrix]]
     [sesame-delivery.api.locker :refer [get-lockers-pending-orders]]

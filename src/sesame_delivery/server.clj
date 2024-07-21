@@ -9,7 +9,8 @@
     [ring.adapter.jetty :as jetty]
     [clojure.string :as s]
 
-    [sesame-delivery.api.db :refer [setup-db]]
+    [sesame-delivery.api.utils :refer [wrap-datomic]]
+    [sesame-delivery.api.db :refer [setup-db db-url]]
     [sesame-delivery.api.fixtures :refer [insert-test-data]]
     [sesame-delivery.api.locker :as locker]
     [sesame-delivery.api.parcel :as parcel]
@@ -35,7 +36,7 @@
       (route/not-found {:body {:status "error" :message "Not found"}}))))
  
 (defroutes api-handler
-  (-> api-routes wrap-json-response wrap-json-body wrap-reload))
+  (-> api-routes (wrap-datomic db-url) wrap-json-response wrap-json-body wrap-reload))
 
 (defn handler [request]
   (if (s/starts-with? (:uri request) "/api")
