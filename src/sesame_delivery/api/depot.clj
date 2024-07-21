@@ -40,8 +40,11 @@
 (defn get-depots []
   (map first
     (q '[:find (pull
-                   ?e [:db/id :depot/canonical-id])
-           :where [?e :depot/canonical-id]])))
+                 ?e [:db/id 
+                     :depot/canonical-id
+                     {:depot/location
+                     	[:location/lat :location/long]}])
+         :where [?e :depot/canonical-id]])))
 
 (defn get-depot-with-time-window [canonical-id]
  	(->> canonical-id

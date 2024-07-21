@@ -9,7 +9,6 @@
 
 (import [org.sesame.delivery TripPlan])
 
-
 ; duration of each stop in minutes
 ;; TODO: turn into a fn of # of parcels & returns
 (def stop-duration 10)

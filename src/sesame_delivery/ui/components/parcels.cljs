@@ -1,6 +1,6 @@
 (ns sesame-delivery.ui.components.parcels
  	(:require
-    [sesame-delivery.ui.utils :refer [format-keyword format-day]]
+    [sesame-delivery.ui.utils :refer [format-keyword format-display-date format-ymd-date]]
     [reagent.core :as reagent]
     [re-frame.core :as rf]))
 
@@ -47,9 +47,9 @@
          (deref plans-summary)
          [:div
           [:h1 "Parcels"]
-          (for [[day day-parcels] @parcels]
+          (doall (for [[day day-parcels] @parcels]
             [:div.parcels-list {:key (str "parcels-list-" day)}
-             [:h2 (format-day day)]
+             [:h2 (format-display-date day)]
              [:div.itinerary-boxes
               (for [[plan-id plan-parcels] day-parcels]
                 [:div.plan {:key plan-id :class (when (= :no-plan plan-id) "no-plan")}
@@ -58,7 +58,7 @@
                     [:button
                      {
                      	:disabled @processing?
-                     	:on-click #(create-plan (.slice (.toISOString (js/Date. day)) 0 10))}
+                     	:on-click #(create-plan (format-ymd-date day))}
                     	(if @processing? "New plan..." "+ New plan" )]
                     [:div
                     	[:h3 plan-id]
@@ -106,6 +106,6 @@
                       ]])]])
               ]
              ]
-            )
+            ))
 
           ])})))

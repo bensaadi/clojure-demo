@@ -21,7 +21,6 @@
     [sesame-delivery.api.plan :as plan])
   (:gen-class))
 
-
 (def api-routes
   (context "/" []
     (context "/api" []

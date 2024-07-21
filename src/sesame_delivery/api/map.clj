@@ -6,57 +6,25 @@
     [geo [io :as gio]]
     [sesame-delivery.api.utils :refer :all]
     [sesame-delivery.api.locker :refer [get-lockers]]
+    [sesame-delivery.api.depot :refer [get-depots]]
     [sesame-delivery.api.db :refer [db-url]]
     [thi.ng.geom.circle :as c]
     [thi.ng.geom.svg.core :as svg]
     [thi.ng.geom.svg.adapter :as adapt]))
 
-(defn plan-preview [plan-canonical-id]
-  (->>
-    (get-plan-data plan-canonical-id)
-    (transform-plan-data)
-    (gen-plan-map)
-    (adapt/all-as-svg)
-    (svg/serialize)
-    (serve-svg)))
-
-(defn assets-map []
-  (->>
-    (get-assets-data)
-    (gen-assets-map)
-    (adapt/all-as-svg)
-    (svg/serialize)
-    (serve-svg)))
-
-(defn controller []
-  (routes
-    (GET "/assets" [] (assets-map))
-    (GET "/data/assets" [] (success (format-query-output (get-assets-data))))
-    (GET "/plan-preview/:plan-id" [plan-id] (plan-preview plan-id))))
-
-
-
-
 ; map boundaries
-(def min-lat 36.8366)
-(def max-lat 36.6513)
-(def min-long 2.9060)
-(def max-long 3.2683)
+(def map-bbox [2.9060 3.2683 36.8370 36.6510])
 
 ; image boundaries
-(def min-x 0)
-(def max-x 1000)
-(def min-y 0)
-(def max-y (* max-x (/ (- min-lat max-lat) (- max-long min-long))))
+(def map-width 1000)
+(def map-height 600)
 
 (def route-colors ["blue" "red"])
 
 (def geodata (gio/read-geojson (slurp "resources/geodata/algiers.geojson")))
 
 (defn projection [[lat long]]
-  ((plate-carree [min-lat min-long] [max-lat max-long] [min-x min-y] [max-x max-y])
-   [lat long]))
-
+  (mercator [long lat] map-bbox map-width map-height))
 
 (def admin 
   (geodata->points geodata projection))
@@ -153,6 +121,19 @@
         (->> itinerary
           (map #(map projection %)))))))
 
+(defn get-all-polylines []
+  (->>
+    (q '[:find
+         (pull ?e [:db/id
+                   :distance/to-canonical-id
+                   :distance/from-canonical-id
+                   :distance/polyline
+                   :distance/minutes
+                   :distance/meters])
+         :where [?e :distance/from-canonical-id]])
+    (map first)))
+
+
 (defn draw-stop-pin [[x y] label]
   (list
     (svg/text [(+ x 0) (+ y 14)] label {:text-anchor "middle" :font-size 10})  
@@ -201,7 +182,7 @@
     _route-labels :route-labels
     canonical-ids :canonical-ids }]
   (svg/svg
-    {:width max-x :height max-y :font-family "Arial" :font-size 18}
+    {:width map-width :height map-height :font-family "Arial" :font-size 18}
     (draw-admin-boundaries admin)
     (list (mapcat draw-stop-pin stops stop-labels))
     (let [polylines (get-polylines canonical-ids)]
@@ -209,23 +190,31 @@
         (draw-polyline-paths polylines)
         (draw-polyline-labels polylines)))))
 
+(defn just-location-and-canonical-id [data]
+  (map 
+    #(vector
+       (projection
+         [(get-in % [:location :lat] )
+          (get-in % [:location :long])])
+       (:canonical-id %)) data))
+
 (defn get-assets-data []
-  {:lockers
-   (->>
-     (get-lockers)
-     (map
-       #(vector
-          (projection
-            [(get-in % [:locker/location :location/lat] )
-             (get-in % [:locker/location :location/long])])
-          (:locker/canonical-id %))))
-   :admin (map points->path admin)})
+  (let [lockers (-> (get-lockers) strip-namespaces just-location-and-canonical-id)
+        depots (-> (get-depots) strip-namespaces just-location-and-canonical-id)
+        polylines (get-all-polylines)
+        ]
+    {:lockers lockers
+     :depots depots
+     :admin admin
+     ; TODO add polylines
+     ; :polylines (nested-group-by [:distance/from-canonical-id :distance/to-canonical-id] polylines)
+     }))
 
 (defn gen-assets-map
   [{lockers :lockers
     admin :admin}]
   (svg/svg
-    {:width max-x :height max-y :font-family "Arial" :font-size 12}
+    {:width map-width :height map-height :font-family "Arial" :font-size 12}
 
     ; admin boundaries
     (map #(svg/path % {:stroke "#BBB" :fill "#FFF"}) admin)
@@ -236,3 +225,26 @@
   {:body image 
    :headers { "content-type" "image/svg+xml"}})
 
+
+(defn plan-preview [plan-canonical-id]
+  (->>
+    (get-plan-data plan-canonical-id)
+    (transform-plan-data)
+    (gen-plan-map)
+    (adapt/all-as-svg)
+    (svg/serialize)
+    (serve-svg)))
+
+(defn assets-map []
+  (->>
+    (get-assets-data)
+    (gen-assets-map)
+    (adapt/all-as-svg)
+    (svg/serialize)
+    (serve-svg)))
+
+(defn controller []
+  (routes
+    (GET "/assets" [] (assets-map))
+    (GET "/data/assets" [] (success (format-query-output (get-assets-data))))
+    (GET "/plan-preview/:plan-id" [plan-id] (plan-preview plan-id))))

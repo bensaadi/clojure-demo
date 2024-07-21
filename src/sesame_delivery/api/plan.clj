@@ -1,11 +1,11 @@
 (ns sesame-delivery.api.plan
   (:require 
-    [sesame-delivery.api.utils :refer :all]
-    [java-time.api :as jt]
-    [datomic.api :as d]
+    [clojure.instant]
     [clojure.walk :refer [walk]]
     [compojure.core :refer [routes GET POST]]
-    [clojure.instant]
+    [datomic.api :as d]
+    [java-time.api :as jt]
+    [sesame-delivery.api.utils :refer :all]
     [sesame-delivery.api.algorithm :refer [solve-optimized-plan]]
     [sesame-delivery.api.depot :refer [get-depots]]
     [sesame-delivery.api.vehicle :refer [get-vehicles]]
@@ -80,7 +80,7 @@
      stop-lockers
     (map
       (fn [canonical-id]
-        (map #(find-by-canonical-id db-url %) canonical-id)) locker-canonical-ids)]
+        (map canonical-id->entity canonical-id)) locker-canonical-ids)]
     (when (> (count stop-lockers) 0)
       (_make-plan
         parcels-delivery-date
@@ -100,15 +100,14 @@
   (let [start (jt/java-date (jt/truncate-to start-at :days))
         end (jt/java-date (jt/truncate-to (jt/plus start-at (jt/days 1)) :days))
         last-canonical-id
-        (->> (d/q
-               '[:find
+        (->> (q '[:find
                  (pull ?e [:db/id :plan/canonical-id])
                  :in $ ?start ?end
                  :where
                  [?e :plan/start-at ?start-at]
                  [(>= ?start-at ?start)]
                  [(< ?start-at ?end)]]
-               (d/db (d/connect db-url)) start end)
+               start end)
           (map (comp :plan/canonical-id first) )
           (last)
           )]
@@ -122,6 +121,7 @@
           (when (< % 100) "0") (when (< % 10) "0") %))
       )))
 
+; TODO break down into smaller functions
 (defn insert-plan [{ itineraries :itineraries }]
   (when (> (count itineraries) 0)
     (let
@@ -209,8 +209,7 @@
 
 (defn query-plans [db-url]
   (map first
-    (d/q
-      '[:find
+    (q '[:find
         (pull
           ?e [:db/id
               :plan/canonical-id
@@ -240,8 +239,7 @@
               ])
         :where
         [?e :plan/canonical-id]
-        [?e :plan/canceled? false]]
-      (d/db (d/connect db-url)))))
+        [?e :plan/canceled? false]])))
 
 (defn list-plans [_request] 
   (-> db-url
@@ -272,27 +270,25 @@
 (defn get-plan-parcels [plan-id]
   (map #(:db/id %)
     (map first
-      (d/q
-        '[:find
+      (q '[:find
           (pull ?e [:db/id ])
           :in $ ?plan-id
           :where [?e :parcel/plan ?plan-id]]
-        (d/db (d/connect db-url)) plan-id))))
+        plan-id))))
 
 (defn get-plan-returns [plan-id]
   (map #(:db/id %)
     (map first
-      (d/q
-        '[:find
+      (q '[:find
           (pull ?e [:db/id ])
           :in $ ?plan-id
           :where [?e :return/plan ?plan-id]]
-        (d/db (d/connect db-url)) plan-id))))
+        plan-id))))
 
 (defn cancel-plan [request]
   (let 
     [plan-canonical-id (get-in request [:body "plan-canonical-id"])
-     plan-id (:db/id (find-by-canonical-id db-url plan-canonical-id))
+     plan-id (:db/id (canonical-id->entity plan-canonical-id))
      parcels (get-plan-parcels plan-id)
      returns (get-plan-returns plan-id)]
     (if

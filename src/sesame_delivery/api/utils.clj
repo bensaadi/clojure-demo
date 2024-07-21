@@ -4,7 +4,8 @@
     [clojure.walk :refer [postwalk]]
     [datomic.api :as d]
     [geocoordinates.core :as geo]
-    [java-time.api :as jt]))
+    [java-time.api :as jt]
+    [thi.ng.math.core :as m]))
 
 
 ; constants
@@ -54,7 +55,6 @@
 (defn format-date [date]
   (jt/format (jt/format "yyyy-MM-dd") (.atZone date (jt/zone-id))))
 
-(format-date (jt/instant))
 
 ; list processing
 
@@ -102,8 +102,6 @@
     (cons [[:z]])
     (first)))
 
-; creates a plate-carree projection. returns a function
-; that translates [lat long] to [x y]
 (defn plate-carree
   [[min-lat min-long] [max-lat max-long] [min-x min-y] [max-x max-y]]
   (let [
@@ -114,6 +112,18 @@
     (fn [[lat long]] 
       (let [[east north] (polar->cartersian [lat long])]
         [(/ (- east min-east) xscale) (/ (- north min-north) yscale)]))))
+
+(defn lat-log
+  [lat] (Math/log (Math/tan (+ (/ (m/radians lat) 2) m/QUARTER_PI))))
+
+(defn mercator
+  [[lon lat] [left right top bottom] w h]
+  (let [lon              (m/radians lon)
+        left             (m/radians left)
+        [lat top bottom] (map lat-log [lat top bottom])]
+    [
+     (* w (/ (- lon left) (- (m/radians right) left)))
+     (* h (/ (- lat top) (- bottom top)))]))
 
 (defn geodata->points [geodata projection]
   (map
